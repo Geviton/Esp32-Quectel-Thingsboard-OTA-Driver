@@ -10,11 +10,7 @@ on:
       app_bin_name:
         description: 'Desired name for your application binary (without .bin extension)'
         required: true
-        default: 'gsm_ota'
-      release_version:
-        description: 'Version Tag for OTA Link (e.g., v1.22)'
-        required: true
-        default: 'v1.22'
+        default: 'application_v1.0'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -22,8 +18,10 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    
+    # Gives the runner permission to commit files back into this repository
     permissions:
-      contents: write # Grants the token direct authorization to generate releases
+      contents: write
 
     steps:
       - name: Checkout Repository
@@ -51,7 +49,7 @@ jobs:
       - name: Stage and Rename Binary Artifacts
         run: |
           mkdir -p firmware_binaries
-          mkdir -p single_ota_bin
+          mkdir -p Release
           
           # Copy standard bootloader and partition table to the archive folder
           cp build/bootloader/bootloader.bin firmware_binaries/bootloader.bin
@@ -61,12 +59,12 @@ jobs:
           MAIN_BIN=$(find build -maxdepth 1 -name "*.bin" ! -name "bootloader.bin" ! -name "partition-table.bin" | head -n 1)
           
           if [ -n "$MAIN_BIN" ]; then
-            # Copy to fallback zip archive folder
-            cp "$MAIN_BIN" "firmware_binaries/${{ github.event.inputs.app_bin_name }}_${{ github.event.inputs.release_version }}.bin"
+            # Copy to zip archive folder
+            cp "$MAIN_BIN" "firmware_binaries/${{ github.event.inputs.app_bin_name }}.bin"
             
-            # Copy to isolated folder for the public Release asset pipeline
-            cp "$MAIN_BIN" "single_ota_bin/${{ github.event.inputs.app_bin_name }}_${{ github.event.inputs.release_version }}.bin"
-            echo "Staged application binary: ${{ github.event.inputs.app_bin_name }}_${{ github.event.inputs.release_version }}.bin"
+            # Copy straight to the repository's local Release folder
+            cp "$MAIN_BIN" "Release/${{ github.event.inputs.app_bin_name }}.bin"
+            echo "Successfully staged application binary in local Release folder."
           else
             echo "ERROR: Main application binary not found!" && exit 1
           fi
@@ -78,15 +76,15 @@ jobs:
           path: firmware_binaries/
           retention-days: 7
 
-      - name: Generate Public GitHub Release and Attach Asset
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.event.inputs.release_version }}
-          name: "Release ${{ github.event.inputs.release_version }}"
-          body: "Automated production firmware binaries compiled via GitHub Actions CI pipeline."
-          files: |
-            single_ota_bin/${{ github.event.inputs.app_bin_name }}_${{ github.event.inputs.release_version }}.bin
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit and Push Unzipped Binary to Release Folder
+        run: |
+          # Configure a generic GitHub Actions bot profile for the commit
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action Bot"
+          
+          # Stage the new binary file inside the Release folder
+          git add Release/${{ github.event.inputs.app_bin_name }}.bin
+          
+          # Commit and push back to the current branch natively
+          git commit -m "Automated update of OTA binary: ${{ github.event.inputs.app_bin_name }}.bin" || echo "No changes to commit"
+          git push origin HEAD:${{ github.role_name == '' && 'main' || github.ref_name }}
