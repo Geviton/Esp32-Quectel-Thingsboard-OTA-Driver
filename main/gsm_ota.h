@@ -59,7 +59,7 @@
 FIRMWARE: METADATA
 *******************/ 
 #define FIRMWARE_TITLE    "gsm_ota"
-#define FIRMWARE_VERSION  "v1.21"
+#define FIRMWARE_VERSION  "v1.22"
 
 typedef enum {
     ESP_HTTPS_OTA_INIT,
