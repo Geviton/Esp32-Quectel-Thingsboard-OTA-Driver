@@ -85,13 +85,13 @@ void app_main(void) {
 				error(3);
 			    ESP_LOGE(TAG_GSM, "Ota update execution failed!");
 			    // Take action (optional)
-			    vTaskDelay(pdMS_TO_TICKS(1000));
+			    vTaskDelay(pdMS_TO_TICKS(100));
 			    continue;
 		    } else { /* on success device restarts.*/}
 		 
             start_time = xTaskGetTickCount() * portTICK_PERIOD_MS; // reset timer
         }
-        vTaskDelay(pdMS_TO_TICKS(3000));
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
@@ -163,12 +163,12 @@ void blink_led() {
             led_colors[j] = apply_brightness(0x000000); 
         }
         ws2812_write_leds(led_colors);
-        vTaskDelay(pdMS_TO_TICKS(500)); 
+        vTaskDelay(pdMS_TO_TICKS(200)); 
         for (int i = 0; i < NUM_LEDS; i++) {
             led_colors[i] = apply_brightness(0xFF0000); 
         }
         ws2812_write_leds(led_colors);
-        vTaskDelay(pdMS_TO_TICKS(500)); 
+        vTaskDelay(pdMS_TO_TICKS(200)); 
     }
     for (int j = 0; j < NUM_LEDS; j++) {
         led_colors[j] = apply_brightness(0x000000); 
