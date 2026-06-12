@@ -46,45 +46,39 @@ jobs:
           target: ${{ github.event.inputs.target_chip }}
           path: '.'
 
-      - name: Stage and Rename Binary Artifacts
+      - name: Stage and Rename Binary Elements to Release Folder
         run: |
-          mkdir -p firmware_binaries
           mkdir -p Release
           
-          # Copy standard bootloader and partition table to the archive folder
-          cp build/bootloader/bootloader.bin firmware_binaries/bootloader.bin
-          cp build/partition_table/partition-table.bin firmware_binaries/partition-table.bin
+          # Copy standard bootloader and partition table straight to the local Release folder
+          cp build/bootloader/bootloader.bin Release/bootloader.bin
+          cp build/partition_table/partition-table.bin Release/partition-table.bin
           
           # Dynamically locate the main compiled app binary
           MAIN_BIN=$(find build -maxdepth 1 -name "*.bin" ! -name "bootloader.bin" ! -name "partition-table.bin" | head -n 1)
           
           if [ -n "$MAIN_BIN" ]; then
-            # Copy to zip archive folder
-            cp "$MAIN_BIN" "firmware_binaries/${{ github.event.inputs.app_bin_name }}.bin"
-            
-            # Copy straight to the repository's local Release folder
+            # Copy straight to the local Release folder with your chosen input name
             cp "$MAIN_BIN" "Release/${{ github.event.inputs.app_bin_name }}.bin"
-            echo "Successfully staged application binary in local Release folder."
+            echo "Successfully staged all 3 firmware binaries in the local Release folder."
           else
             echo "ERROR: Main application binary not found!" && exit 1
           fi
+          
+          echo "Current content of Release folder to push:"
+          ls -l Release/
 
-      - name: Upload Complete Binaries as Artifacts (Zipped Fallback)
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ github.event.inputs.app_bin_name }}-binaries
-          path: firmware_binaries/
-          retention-days: 7
-
-      - name: Commit and Push Unzipped Binary to Release Folder
+      - name: Commit and Push Firmware Fleet to Release Folder
         run: |
           # Configure a generic GitHub Actions bot profile for the commit
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action Bot"
           
-          # Stage the new binary file inside the Release folder
+          # Stage the entire Release folder contents
+          git add Release/bootloader.bin
+          git add Release/partition-table.bin
           git add Release/${{ github.event.inputs.app_bin_name }}.bin
           
           # Commit and push back to the current branch natively
-          git commit -m "Automated update of OTA binary: ${{ github.event.inputs.app_bin_name }}.bin" || echo "No changes to commit"
+          git commit -m "Automated Build: ${{ github.event.inputs.app_bin_name }}" || echo "No changes to commit"
           git push origin HEAD:${{ github.role_name == '' && 'main' || github.ref_name }}
