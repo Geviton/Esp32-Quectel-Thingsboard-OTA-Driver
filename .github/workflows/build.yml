@@ -1,0 +1,90 @@
+name: CI Build System
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_chip:
+        description: 'Target Microcontroller (e.g., esp32, esp32s3, esp32c3)'
+        required: true
+        default: 'esp32s3'
+      app_bin_name:
+        description: 'Desired name for your application binary (without .bin extension)'
+        required: true
+        default: 'application_v1.0'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    # Gives the runner permission to commit files back into this repository
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Cache ESP-IDF Tools & ccache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.espressif
+            ~/.ccache
+          key: ${{ runner.os }}-esp-idf-${{ github.event.inputs.target_chip }}
+          restore-keys: |
+            ${{ runner.os }}-esp-idf-
+
+      - name: Compile ESP32 Project
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: 'v5.3.1'
+          target: ${{ github.event.inputs.target_chip }}
+          path: '.'
+
+      - name: Stage and Rename Binary Artifacts
+        run: |
+          mkdir -p firmware_binaries
+          mkdir -p Release
+          
+          # Copy standard bootloader and partition table to the archive folder
+          cp build/bootloader/bootloader.bin firmware_binaries/bootloader.bin
+          cp build/partition_table/partition-table.bin firmware_binaries/partition-table.bin
+          
+          # Dynamically locate the main compiled app binary
+          MAIN_BIN=$(find build -maxdepth 1 -name "*.bin" ! -name "bootloader.bin" ! -name "partition-table.bin" | head -n 1)
+          
+          if [ -n "$MAIN_BIN" ]; then
+            # Copy to zip archive folder
+            cp "$MAIN_BIN" "firmware_binaries/${{ github.event.inputs.app_bin_name }}.bin"
+            
+            # Copy straight to the repository's local Release folder
+            cp "$MAIN_BIN" "Release/${{ github.event.inputs.app_bin_name }}.bin"
+            echo "Successfully staged application binary in local Release folder."
+          else
+            echo "ERROR: Main application binary not found!" && exit 1
+          fi
+
+      - name: Upload Complete Binaries as Artifacts (Zipped Fallback)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.app_bin_name }}-binaries
+          path: firmware_binaries/
+          retention-days: 7
+
+      - name: Commit and Push Unzipped Binary to Release Folder
+        run: |
+          # Configure a generic GitHub Actions bot profile for the commit
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action Bot"
+          
+          # Stage the new binary file inside the Release folder
+          git add Release/${{ github.event.inputs.app_bin_name }}.bin
+          
+          # Commit and push back to the current branch natively
+          git commit -m "Automated update of OTA binary: ${{ github.event.inputs.app_bin_name }}.bin" || echo "No changes to commit"
+          git push origin HEAD:${{ github.role_name == '' && 'main' || github.ref_name }}
