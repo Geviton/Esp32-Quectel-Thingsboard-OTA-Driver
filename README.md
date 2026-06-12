@@ -1,22 +1,11 @@
-# esp32-quectel-thingsboard-ota-driver
+ESP-IDF template app
+====================
 
-Production-grade ESP-IDF framework bridging ESP32, Quectel GSM/LTE modems, and ThingsBoard for secure OTA updates and scalable IoT deployments.
+This is a template application to be used with [Espressif IoT Development Framework](https://github.com/espressif/esp-idf).
 
-## Features
+Please check [ESP-IDF docs](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html) for getting started instructions.
 
-✔ Native Quectel modem integration  
-✔ ThingsBoard firmware attribute retrieval  
-✔ Secure HTTPS OTA streaming  
-✔ SHA-256 firmware verification  
-✔ Firmware telemetry reporting  
-✔ Rollback-aware OTA implementation  
-✔ Production-grade recovery mechanisms  
-✔ ESP-IDF native architecture
-
-## Credits
-
-- **Developer:**
-  - Eric Mulwa
-
-- **Last Modified By:**
-  - Date: 21/05/2026
+*Code in this repository is in the Public Domain (or CC0 licensed, at your option.)
+Unless required by applicable law or agreed to in writing, this
+software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied.*
